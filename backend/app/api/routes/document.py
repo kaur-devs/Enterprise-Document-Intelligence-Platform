@@ -18,9 +18,6 @@ def create_document(document:DocumentCreate,db:Session=Depends(get_db)):
     return service.create_document(db,document)
 
 @router.post("/upload", response_model=UploadResponse)
-def upload_document(
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db)
-):
+def upload_document(file: UploadFile = File(...),db: Session = Depends(get_db)):
     return service.upload_document(db, file)
 
