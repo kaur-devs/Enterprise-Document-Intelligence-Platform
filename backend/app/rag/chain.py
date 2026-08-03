@@ -3,10 +3,15 @@ from langchain_core.documents import Document
 from langchain_google_genai import ChatGoogleGenerativeAI
 from app.core import config
 
+
+class LLMGenerationError(Exception):
+    """Raised when the underlying Gemini call fails (timeout, API error, etc.)."""
+
+
 class QAChain:
     def __init__(self):
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
+            model=config.GEMINI_MODEL,
             google_api_key=config.GOOGLE_API_KEY,
             temperature=0.0
         )
@@ -33,7 +38,10 @@ class QAChain:
             ("system", system_prompt),
             ("user", f"Context:\n{context}\n\nQuestion: {question}")
         ]
-        response = self.llm.invoke(messages)
+        try:
+            response = self.llm.invoke(messages)
+        except Exception as e:
+            raise LLMGenerationError(str(e)) from e
         answer = response.content.strip()
         is_grounded = answer != self.fallback_message
         return answer, is_grounded

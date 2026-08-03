@@ -1,5 +1,6 @@
 import os
 import hashlib
+import logging
 from datetime import datetime
 from typing import List, Tuple, Optional
 from sqlalchemy.orm import Session
@@ -10,6 +11,8 @@ from app.schemas.document import DocumentCreate
 from app.rag.loader import DocumentLoader
 from app.rag.splitter import DocumentSplitter
 from app.rag.vectorstore import get_vector_store
+
+logger = logging.getLogger("document_service")
 
 class DocumentService:
     def __init__(self):
@@ -84,6 +87,7 @@ class DocumentService:
             self.vector_store.add_texts(texts=texts, metadatas=metadatas)
             self.repository.update_document_status(db, doc_id, "indexed", chunk_count=len(chunks))
         except Exception as e:
+            logger.exception(f"Document processing pipeline failed for document_id={doc_id}: {e}")
             self.repository.update_document_status(db, doc_id, "failed")
         finally:
             db.close()
@@ -92,29 +96,39 @@ class DocumentService:
         db_doc = self.repository.get_document(db, doc_id)
         if not db_doc:
             return False
-        
+
+        # Chroma is deleted first deliberately: if a later step fails, we're left
+        # with orphaned DB/filesystem state but no orphaned (still-searchable) vectors.
         try:
             self.vector_store.delete(where={"document_id": str(doc_id)})
         except Exception as e:
-            raise e
-        
+            logger.exception(f"Failed to delete vectors for document_id={doc_id}: {e}")
+            raise
+
         db_success = False
         fs_success = False
         try:
             db_success = self.repository.delete_document(db, doc_id)
         except Exception as e:
-            pass
-            
+            logger.exception(f"Failed to delete document_id={doc_id} from database: {e}")
+
         try:
             if os.path.exists(db_doc.filepath):
                 os.remove(db_doc.filepath)
             fs_success = True
         except Exception as e:
-            pass
-            
+            logger.exception(f"Failed to remove file '{db_doc.filepath}' for document_id={doc_id}: {e}")
+
         if not db_success or not fs_success:
             if not db_success:
                 self.repository.update_document_status(db, doc_id, "failed_cleanup")
+            else:
+                # DB row is already gone at this point, so there's no document left
+                # to flag "needs cleanup" against — log loudly since it's the only
+                # remaining trace of the orphaned file on disk.
+                logger.error(
+                    f"Orphaned file left on disk for deleted document_id={doc_id}: {db_doc.filepath}"
+                )
             raise RuntimeError("Cleanup failed for some components. Orphaned metadata remains.")
-            
+
         return True
