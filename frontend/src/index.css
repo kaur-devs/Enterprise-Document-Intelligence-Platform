@@ -99,6 +99,10 @@ body {
   font-weight: 500;
   font-size: 0.95rem;
   border: 1px solid transparent;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
 }
 
 .nav-item:hover {
