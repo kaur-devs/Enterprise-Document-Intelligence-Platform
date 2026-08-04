@@ -45,6 +45,15 @@ export function UploadIcon(props) {
   );
 }
 
+export function RefreshIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 12a8 8 0 0 1 14.7-4.5M20 12a8 8 0 0 1-14.7 4.5" />
+      <path d="M18.5 3v5h-5M5.5 21v-5h5" />
+    </svg>
+  );
+}
+
 export function TrashIcon(props) {
   return (
     <svg {...base} {...props}>

@@ -72,3 +72,16 @@ def delete_document(id: int, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{id}/reindex")
+def reindex_document(id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    try:
+        success = service.reindex_document(db, id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Document not found.")
+        background_tasks.add_task(service.process_document_pipeline, id)
+        return {"status": "success", "message": "Re-indexing started."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

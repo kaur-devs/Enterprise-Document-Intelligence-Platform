@@ -24,6 +24,10 @@ export function deleteDocument(id) {
   return request(`/documents/${id}`, { method: "DELETE" });
 }
 
+export function reindexDocument(id) {
+  return request(`/documents/${id}/reindex`, { method: "POST" });
+}
+
 export function uploadDocument(file, override = false) {
   const formData = new FormData();
   formData.append("file", file);

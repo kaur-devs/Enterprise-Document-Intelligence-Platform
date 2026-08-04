@@ -132,3 +132,17 @@ class DocumentService:
             raise RuntimeError("Cleanup failed for some components. Orphaned metadata remains.")
 
         return True
+
+    def reindex_document(self, db: Session, doc_id: int) -> bool:
+        db_doc = self.repository.get_document(db, doc_id)
+        if not db_doc:
+            return False
+
+        try:
+            self.vector_store.delete(where={"document_id": str(doc_id)})
+        except Exception as e:
+            logger.exception(f"Failed to clear existing vectors before reindexing document_id={doc_id}: {e}")
+            raise
+
+        self.repository.update_document_status(db, doc_id, "uploaded", chunk_count=0)
+        return True

@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import * as api from "../api";
 import { formatBytes, formatDate } from "../utils";
-import { UploadIcon, TrashIcon } from "../icons";
+import { UploadIcon, TrashIcon, RefreshIcon } from "../icons";
 
 function Modal({ title, icon, tone, children, onClose, actions }) {
   return (
@@ -24,6 +24,7 @@ export default function KnowledgeBase({ documents, onRefresh }) {
   const [error, setError] = useState("");
   const [pendingDuplicate, setPendingDuplicate] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [reindexingId, setReindexingId] = useState(null);
 
   async function handleUpload(file, override) {
     setUploading(true);
@@ -51,6 +52,18 @@ export default function KnowledgeBase({ documents, onRefresh }) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (file) handleUpload(file, false);
+  }
+
+  async function handleReindex(doc) {
+    setReindexingId(doc.id);
+    try {
+      await api.reindexDocument(doc.id);
+      await onRefresh();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setReindexingId(null);
+    }
   }
 
   async function confirmDelete() {
@@ -126,7 +139,15 @@ export default function KnowledgeBase({ documents, onRefresh }) {
                   </td>
                   <td>{formatDate(doc.upload_time)}</td>
                   <td>
-                    <button className="btn-icon" onClick={() => setDeleteTarget(doc)}>
+                    <button
+                      className="btn-icon"
+                      disabled={reindexingId === doc.id}
+                      onClick={() => handleReindex(doc)}
+                      title="Re-index"
+                    >
+                      <RefreshIcon />
+                    </button>
+                    <button className="btn-icon" onClick={() => setDeleteTarget(doc)} title="Delete">
                       <TrashIcon />
                     </button>
                   </td>
