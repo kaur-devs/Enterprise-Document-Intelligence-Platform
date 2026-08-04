@@ -23,7 +23,7 @@ langchain-chroma
 langchain-google-genai
 google-generativeai
 pypdf
-docx2txt
+python-docx
 markdown
 chromadb
 

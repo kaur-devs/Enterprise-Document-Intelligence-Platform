@@ -24,7 +24,7 @@ class DocumentSplitter:
 
     def split_documents(self, documents: List[Document], file_type: str) -> List[Document]:
         file_type = file_type.lower()
-        if file_type in ["md", "markdown"]:
+        if file_type in ["md", "markdown", "docx", "doc"]:
             split_docs = []
             for doc in documents:
                 header_splits = self.markdown_header_splitter.split_text(doc.page_content)
