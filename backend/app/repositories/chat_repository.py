@@ -16,3 +16,6 @@ class ChatRepository:
 
     def get_chats(self, db: Session):
         return db.query(Chat).order_by(Chat.timestamp.desc()).all()
+
+    def get_recent_chats(self, db: Session, limit: int = 5):
+        return db.query(Chat).order_by(Chat.timestamp.desc()).limit(limit).all()

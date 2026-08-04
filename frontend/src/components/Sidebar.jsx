@@ -1,6 +1,7 @@
-import { KnowledgeBaseIcon, ChatIcon, SearchIcon } from "../icons";
+import { DashboardIcon, KnowledgeBaseIcon, ChatIcon, SearchIcon } from "../icons";
 
 const NAV_ITEMS = [
+  { key: "dashboard", label: "Dashboard", Icon: DashboardIcon },
   { key: "knowledgeBase", label: "Knowledge Base", Icon: KnowledgeBaseIcon },
   { key: "chat", label: "Chat", Icon: ChatIcon },
   { key: "search", label: "Search", Icon: SearchIcon },

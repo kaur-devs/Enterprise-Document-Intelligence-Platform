@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.document import Document
 from app.schemas.document import DocumentCreate
@@ -47,3 +48,13 @@ class DocumentRepository:
             db.commit()
             return True
         return False
+
+    def get_document_stats(self, db: Session):
+        total_documents = db.query(func.count(Document.id)).scalar() or 0
+        total_chunks = db.query(func.sum(Document.chunk_count)).scalar() or 0
+        total_storage_bytes = db.query(func.sum(Document.size)).scalar() or 0
+        return {
+            "total_documents": total_documents,
+            "total_chunks": total_chunks,
+            "total_storage_bytes": total_storage_bytes,
+        }

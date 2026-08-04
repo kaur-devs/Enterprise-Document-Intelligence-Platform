@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import * as api from "./api";
 import { TERMINAL_STATUSES } from "./utils";
 import Sidebar from "./components/Sidebar";
+import DashboardView from "./components/DashboardView";
 import KnowledgeBase from "./components/KnowledgeBase";
 import ChatView from "./components/ChatView";
 import SearchView from "./components/SearchView";
 
 export default function App() {
-  const [activeView, setActiveView] = useState("knowledgeBase");
+  const [activeView, setActiveView] = useState("dashboard");
   const [documents, setDocuments] = useState([]);
   const [health, setHealth] = useState(null);
 
@@ -37,6 +38,7 @@ export default function App() {
     <div className="app-container">
       <Sidebar activeView={activeView} onNavigate={setActiveView} health={health} />
       <main className="main-content">
+        {activeView === "dashboard" && <DashboardView />}
         {activeView === "knowledgeBase" && (
           <KnowledgeBase documents={documents} onRefresh={refreshDocuments} />
         )}

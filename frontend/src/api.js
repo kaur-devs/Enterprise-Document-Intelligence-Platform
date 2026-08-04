@@ -58,3 +58,7 @@ export function searchDocuments(query, documentIds) {
 export function getHealth() {
   return request("/health/");
 }
+
+export function getDashboard() {
+  return request("/dashboard");
+}
