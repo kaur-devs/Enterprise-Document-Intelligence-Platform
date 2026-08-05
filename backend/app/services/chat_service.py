@@ -1,7 +1,9 @@
 import json
 import logging
+import time
 from typing import List, Optional
 from sqlalchemy.orm import Session
+from app.core import config
 from app.rag.retriever import DocumentRetriever
 from app.rag.chain import QAChain
 from app.repositories.chat_repository import ChatRepository
@@ -16,12 +18,15 @@ class ChatService:
         self.repository = ChatRepository()
 
     def chat_with_docs(self, db: Session, question: str, document_ids: Optional[List[int]] = None) -> ChatResponse:
-        chunks_with_scores = self.retriever.retrieve_relevant_chunks(question, document_ids)
+        request_start = time.perf_counter()
+        chunks_with_scores, retrieval_timings = self.retriever.retrieve_relevant_chunks(question, document_ids)
         try:
-            answer, grounded = self.chain.generate_answer(question, chunks_with_scores)
+            answer, grounded, chain_timings = self.chain.generate_answer(question, chunks_with_scores)
         except Exception as e:
             logger.error(f"Gemini API invocation failed: {e}. Question: {question}")
             raise e
+
+        serialize_start = time.perf_counter()
         citations = []
         seen = set()
         for doc, score in chunks_with_scores:
@@ -43,14 +48,27 @@ class ChatService:
         sources_data = [c.model_dump() for c in citations]
         sources_str = json.dumps(sources_data)
         self.repository.create_chat(db, question, answer, grounded, sources_str)
-        return ChatResponse(
-            answer=answer,
-            grounded=grounded,
-            sources=citations
+        response = ChatResponse(answer=answer, grounded=grounded, sources=citations)
+        serialize_ms = (time.perf_counter() - serialize_start) * 1000
+        total_ms = (time.perf_counter() - request_start) * 1000
+
+        logger.info(
+            "chat latency (ms): embed=%.0f retrieval=%.0f prompt=%.0f generation=%.0f serialize=%.0f total=%.0f",
+            retrieval_timings["embed_ms"], retrieval_timings["retrieval_ms"],
+            chain_timings["prompt_ms"], chain_timings["generation_ms"], serialize_ms, total_ms,
         )
+        if total_ms > config.CHAT_LATENCY_BUDGET_MS:
+            logger.warning(
+                "Chat request exceeded %dms latency budget: %.0fms (question=%r)",
+                config.CHAT_LATENCY_BUDGET_MS, total_ms, question,
+            )
+        return response
 
     def search_semantic(self, query: str, document_ids: Optional[List[int]] = None) -> SearchResponse:
-        chunks_with_scores = self.retriever.retrieve_relevant_chunks(query, document_ids, top_k=10)
+        request_start = time.perf_counter()
+        chunks_with_scores, retrieval_timings = self.retriever.retrieve_relevant_chunks(
+            query, document_ids, top_k=10, apply_threshold=False
+        )
         results = []
         for doc, score in chunks_with_scores:
             doc_id = int(doc.metadata.get("document_id", 0))
@@ -68,6 +86,17 @@ class ChatService:
                 score=score,
                 source=citation
             ))
+        total_ms = (time.perf_counter() - request_start) * 1000
+
+        logger.info(
+            "search latency (ms): embed=%.0f retrieval=%.0f total=%.0f",
+            retrieval_timings["embed_ms"], retrieval_timings["retrieval_ms"], total_ms,
+        )
+        if total_ms > config.SEARCH_LATENCY_BUDGET_MS:
+            logger.warning(
+                "Search request exceeded %dms latency budget: %.0fms (query=%r)",
+                config.SEARCH_LATENCY_BUDGET_MS, total_ms, query,
+            )
         return SearchResponse(results=results)
 
     def get_chat_history(self, db: Session):
